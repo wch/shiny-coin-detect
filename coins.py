@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, cast
 
 import cv2
 import numpy as np
@@ -40,7 +40,7 @@ def detect_coins(image: cv2.Mat) -> list[DetectCoinResult]:
         return []
 
     # Round the circle parameters
-    circles = np.round(circles[0, :]).astype("int")
+    circles = cast(list[tuple[int, int, int]], np.round(circles[0, :]).astype("int"))
 
     # Define a list to store results
     results: list[DetectCoinResult] = []
@@ -58,11 +58,11 @@ def detect_coins(image: cv2.Mat) -> list[DetectCoinResult]:
         avg_color = cv2.mean(masked_image)
 
         # Adjust the coin type estimation based on the new radius range and color
-        if 0.9 <= r_ratio and r_ratio < 1.1:
+        if 0.9 <= r_ratio:
             coin_type = "Quarter"
-        elif 0.8 <= r_ratio and r_ratio < 0.86:
+        elif 0.8 <= r_ratio and r_ratio < 0.9:
             coin_type = "Nickel"
-        elif 0.68 <= r_ratio and r_ratio < 0.78:
+        elif 0.65 <= r_ratio and r_ratio < 0.78:
             # If the average red channel value is significantly higher than the green and blue channels,
             # it's likely a penny (copper color)
             if avg_color[2] > avg_color[0] + 40 and avg_color[2] > avg_color[1] + 40:
