@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
+# pyright: strict
+
+from __future__ import annotations
+
+from typing import Literal, TypedDict
 
 import cv2
 import numpy as np
 
+CoinType = Literal["Quarter", "Dime", "Nickel", "Penny", "Unknown"]
 
-def detect_coins(image_path):
-    # Read the image
-    image = cv2.imread(image_path)
 
+class DetectCoinResult(TypedDict):
+    coin_type: CoinType
+    position: tuple[int, int, int]
+
+
+def detect_coins(image: cv2.Mat) -> list[DetectCoinResult]:
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -34,9 +43,9 @@ def detect_coins(image_path):
     circles = np.round(circles[0, :]).astype("int")
 
     # Define a list to store results
-    results = []
+    results: list[DetectCoinResult] = []
 
-    max_r = max([r for _, _, r in circles])
+    max_r: int = max([r for _, _, r in circles])
 
     # Iterate over the detected circles
     for x, y, r in circles:
@@ -68,7 +77,11 @@ def detect_coins(image_path):
     return results
 
 
-def draw_circles(image, circles, coin_types):
+def draw_circles(
+    image: cv2.Mat,
+    circles: list[tuple[int, int, int]],
+    coin_types: list[CoinType],
+):
     output = image.copy()
     overlay = image.copy()
     color = (0, 255, 0)
@@ -99,7 +112,11 @@ def draw_circles(image, circles, coin_types):
     return output
 
 
-def draw_table(image, coin_counts, total_value):
+def draw_table(
+    image: cv2.Mat,
+    coin_counts: list[tuple[CoinType, int, float]],
+    total_value: float,
+):
     output = image.copy()
     overlay = image.copy()
 
@@ -168,40 +185,51 @@ def draw_table(image, coin_counts, total_value):
     return output
 
 
-image_path = "coins.jpg"
-results = detect_coins(image_path)
+def do_detect_coins(image_path: str):
+    image = cv2.imread(image_path)
 
-# Calculate coin counts and total value
-coin_values = {"Quarter": 0.25, "Dime": 0.10, "Nickel": 0.05, "Penny": 0.01}
-coin_counts = {key: 0 for key in coin_values.keys()}
-for result in results:
-    coin_type = result["coin_type"]
-    if coin_type in coin_counts:
-        coin_counts[coin_type] += 1
+    results = detect_coins(image)
 
-total_value = sum(
-    coin_counts[coin_type] * coin_values[coin_type] for coin_type in coin_counts
-)
-coin_counts_list = [
-    (coin_type, count, count * coin_values[coin_type])
-    for coin_type, count in coin_counts.items()
-]
+    # Calculate coin counts and total value
+    coin_values: dict[CoinType, float] = {
+        "Quarter": 0.25,
+        "Dime": 0.10,
+        "Nickel": 0.05,
+        "Penny": 0.01,
+    }
+    coin_counts: dict[CoinType, int] = {key: 0 for key in coin_values.keys()}
+    for result in results:
+        coin_type = result["coin_type"]
+        if coin_type in coin_counts:
+            coin_counts[coin_type] += 1
 
-# Print table to the console
-print(f"{'Type':<10}{'Count':<10}{'Value':<10}")
-for coin_type, count, value in coin_counts_list:
-    print(f"{coin_type:<10}{count:<10}{value:<10.2f}")
-print(
-    f"{'Total':<10}{sum(count for _, count, _ in coin_counts_list):<10}{total_value:<10.2f}"
-)
+    total_value = sum(
+        coin_counts[coin_type] * coin_values[coin_type] for coin_type in coin_counts
+    )
+    coin_counts_list: list[tuple[CoinType, int, float]] = [
+        (coin_type, count, count * coin_values[coin_type])
+        for coin_type, count in coin_counts.items()
+    ]
 
-# Draw green circles on the detected coins
-circles = [result["position"] for result in results]
-coin_types = [result["coin_type"] for result in results]
-output_image = draw_circles(cv2.imread(image_path), circles, coin_types)
+    # Print table to the console
+    print(f"{'Type':<10}{'Count':<10}{'Value':<10}")
+    for coin_type, count, value in coin_counts_list:
+        print(f"{coin_type:<10}{count:<10}{value:<10.2f}")
+    print(
+        f"{'Total':<10}{sum(count for _, count, _ in coin_counts_list):<10}{total_value:<10.2f}"
+    )
 
-# Draw the table on the output image
-output_image = draw_table(output_image, coin_counts_list, total_value)
+    # Draw green circles on the detected coins
+    circles = [result["position"] for result in results]
+    coin_types: list[CoinType] = [result["coin_type"] for result in results]
+    output_image = draw_circles(image, circles, coin_types)
 
-# Save the output image with green circles, coin type text, and table
-cv2.imwrite("coins-out.jpg", output_image)
+    # Draw the table on the output image
+    output_image = draw_table(output_image, coin_counts_list, total_value)
+
+    # Save the output image with green circles, coin type text, and table
+    cv2.imwrite("coins-out.jpg", output_image)
+
+
+if __name__ == "__main__":
+    do_detect_coins("coins.jpg")
